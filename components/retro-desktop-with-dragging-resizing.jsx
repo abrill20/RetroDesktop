@@ -1,9 +1,14 @@
-'use client'
-
 import React, { useState, useEffect, useCallback } from 'react'
-import { Folder, FileText, Settings, HelpCircle, X } from 'lucide-react'
+import { Folder, FileText, Settings, HelpCircle, X, Power } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
-const DesktopIcon = ({ icon: Icon, label, onClick }) => (
+interface DesktopIconProps {
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+}
+
+const DesktopIcon: React.FC<DesktopIconProps> = ({ icon: Icon, label, onClick }) => (
   <div className="flex flex-col items-center mb-4 cursor-pointer" onClick={onClick}>
     <div className="bg-white bg-opacity-20 p-2 rounded">
       <Icon className="w-8 h-8 text-white" />
@@ -12,7 +17,12 @@ const DesktopIcon = ({ icon: Icon, label, onClick }) => (
   </div>
 )
 
-const StartMenu = ({ isOpen, onClose }) => {
+interface StartMenuProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const StartMenu: React.FC<StartMenuProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null
   
   return (
@@ -25,12 +35,27 @@ const StartMenu = ({ isOpen, onClose }) => {
   )
 }
 
-const Window = ({ id, title, content, onClose, position, size, onMouseDown, onResize }) => {
+interface WindowProps {
+  id: number;
+  title: string;
+  content: string;
+  onClose: () => void;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  onMouseDown: () => void;
+  onResize: (id: number, newPosition: { x: number; y: number }, newSize: { width: number; height: number }) => void;
+  onContentChange?: (newContent: string) => void;
+  isEditable?: boolean;
+}
+
+const Window: React.FC<WindowProps> = ({ 
+  id, title, content, onClose, position, size, onMouseDown, onResize, onContentChange, isEditable 
+}) => {
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
 
-  const handleMouseDown = (e) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true)
     setDragOffset({
       x: e.clientX - position.x,
@@ -39,14 +64,14 @@ const Window = ({ id, title, content, onClose, position, size, onMouseDown, onRe
     onMouseDown()
   }
 
-  const handleResizeMouseDown = (e) => {
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
     e.stopPropagation()
     setIsResizing(true)
     onMouseDown()
   }
 
   useEffect(() => {
-    const handleMouseMove = (e) => {
+    const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) {
         const newX = e.clientX - dragOffset.x
         const newY = e.clientY - dragOffset.y
@@ -93,7 +118,17 @@ const Window = ({ id, title, content, onClose, position, size, onMouseDown, onRe
           <X size={16} />
         </button>
       </div>
-      <div className="p-4 text-white text-sm h-[calc(100%-28px)] overflow-auto">{content}</div>
+      <div className="p-4 text-white text-sm h-[calc(100%-28px)] overflow-auto">
+        {isEditable ? (
+          <textarea
+            className="w-full h-full bg-transparent text-white resize-none focus:outline-none"
+            value={content}
+            onChange={(e) => onContentChange && onContentChange(e.target.value)}
+          />
+        ) : (
+          content
+        )}
+      </div>
       <div 
         className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
         onMouseDown={handleResizeMouseDown}
@@ -102,38 +137,62 @@ const Window = ({ id, title, content, onClose, position, size, onMouseDown, onRe
   )
 }
 
-export function RetroDesktopWithDraggingResizing() {
+interface WindowData {
+  id: number;
+  title: string;
+  content: string;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  zIndex: number;
+  isEditable: boolean;
+}
+
+const PowerButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+  <div className="fixed inset-0 flex items-center justify-center bg-black">
+    <button
+      onClick={onClick}
+      className="text-green-500 hover:text-green-400 focus:outline-none transition-colors duration-300"
+      aria-label="Power On"
+    >
+      <Power size={100} />
+    </button>
+  </div>
+)
+
+export default function RetroDesktop() {
   const [time, setTime] = useState(new Date())
   const [isStartMenuOpen, setIsStartMenuOpen] = useState(false)
-  const [windows, setWindows] = useState([])
-  const [activeWindow, setActiveWindow] = useState(null)
+  const [windows, setWindows] = useState<WindowData[]>([])
+  const [activeWindow, setActiveWindow] = useState<number | null>(null)
+  const [isPoweredOn, setIsPoweredOn] = useState(false)
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
 
-  const openWindow = (title, content) => {
-    const newWindow = {
+  const openWindow = (title: string, content: string, isEditable: boolean = false) => {
+    const newWindow: WindowData = {
       id: Date.now(),
       title,
       content,
       position: { x: 50 + Math.random() * 100, y: 50 + Math.random() * 100 },
       size: { width: 300, height: 200 },
-      zIndex: windows.length
+      zIndex: windows.length,
+      isEditable
     }
     setWindows([...windows, newWindow])
     setActiveWindow(newWindow.id)
   }
 
-  const closeWindow = (id) => {
+  const closeWindow = (id: number) => {
     setWindows(windows.filter(w => w.id !== id))
     if (activeWindow === id) {
       setActiveWindow(null)
     }
   }
 
-  const handleWindowMouseDown = useCallback((id) => {
+  const handleWindowMouseDown = useCallback((id: number) => {
     setActiveWindow(id)
     setWindows(windows => 
       windows.map(w => 
@@ -144,7 +203,7 @@ export function RetroDesktopWithDraggingResizing() {
     )
   }, [])
 
-  const handleWindowResize = useCallback((id, newPosition, newSize) => {
+  const handleWindowResize = useCallback((id: number, newPosition: { x: number; y: number }, newSize: { width: number; height: number }) => {
     setWindows(windows => 
       windows.map(w => 
         w.id === id 
@@ -154,13 +213,29 @@ export function RetroDesktopWithDraggingResizing() {
     )
   }, [])
 
+  const handleContentChange = useCallback((id: number, newContent: string) => {
+    setWindows(windows =>
+      windows.map(w =>
+        w.id === id
+          ? { ...w, content: newContent }
+          : w
+      )
+    )
+  }, [])
+
+  if (!isPoweredOn) {
+    return <PowerButton onClick={() => setIsPoweredOn(true)} />
+  }
+
   return (
-    <div className="h-screen w-full bg-cover bg-center relative overflow-hidden font-mono"
-         style={{ backgroundImage: "url('/retro.jpeg?height=1080&width=1920')" }}>
+    <div 
+      className="h-screen w-full bg-cover bg-center relative overflow-hidden font-mono"
+      style={{ backgroundImage: "url('/retro.jpeg')" }}
+    >
       <div className="absolute inset-0 bg-black bg-opacity-30">
         <div className="p-4 grid grid-cols-4 gap-4">
           <DesktopIcon icon={Folder} label="My Documents" onClick={() => openWindow("My Documents", "This is the My Documents folder.")} />
-          <DesktopIcon icon={FileText} label="README.txt" onClick={() => openWindow("README.txt", "Welcome to RetroOS!")} />
+          <DesktopIcon icon={FileText} label="README.txt" onClick={() => openWindow("README.txt", "Welcome to RetroOS! Feel free to edit this file.", true)} />
           <DesktopIcon icon={Settings} label="Control Panel" onClick={() => openWindow("Control Panel", "System settings and configurations.")} />
           <DesktopIcon icon={HelpCircle} label="Help" onClick={() => openWindow("Help", "Need assistance? Click here for help.")} />
         </div>
@@ -177,7 +252,8 @@ export function RetroDesktopWithDraggingResizing() {
           size={window.size}
           onMouseDown={() => handleWindowMouseDown(window.id)}
           onResize={handleWindowResize}
-          style={{ zIndex: window.zIndex }}
+          onContentChange={(newContent) => handleContentChange(window.id, newContent)}
+          isEditable={window.isEditable}
         />
       ))}
       
