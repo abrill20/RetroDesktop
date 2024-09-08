@@ -1,3 +1,5 @@
+"use client"
+
 import React, { useState, useEffect, useCallback } from 'react'
 import { Folder, FileText, Settings, HelpCircle, X, Power } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
