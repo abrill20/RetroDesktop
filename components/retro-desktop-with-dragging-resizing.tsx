@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { Folder, FileText, Settings, HelpCircle, X, Power } from 'lucide-react'
@@ -57,47 +57,57 @@ const Window: React.FC<WindowProps> = ({
   const [isResizing, setIsResizing] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+
     setIsDragging(true)
     setDragOffset({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
+      x: clientX - position.x,
+      y: clientY - position.y
     })
     onMouseDown()
   }
 
-  const handleResizeMouseDown = (e: React.MouseEvent) => {
+  const handleResizeStart = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation()
     setIsResizing(true)
     onMouseDown()
   }
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+
       if (isDragging) {
-        const newX = e.clientX - dragOffset.x
-        const newY = e.clientY - dragOffset.y
+        const newX = clientX - dragOffset.x
+        const newY = clientY - dragOffset.y
         onResize(id, { x: newX, y: newY }, size)
       } else if (isResizing) {
-        const newWidth = Math.max(200, e.clientX - position.x)
-        const newHeight = Math.max(100, e.clientY - position.y)
+        const newWidth = Math.max(200, clientX - position.x)
+        const newHeight = Math.max(100, clientY - position.y)
         onResize(id, position, { width: newWidth, height: newHeight })
       }
     }
 
-    const handleMouseUp = () => {
+    const handleEnd = () => {
       setIsDragging(false)
       setIsResizing(false)
     }
 
     if (isDragging || isResizing) {
-      window.addEventListener('mousemove', handleMouseMove)
-      window.addEventListener('mouseup', handleMouseUp)
+      window.addEventListener('mousemove', handleMove)
+      window.addEventListener('touchmove', handleMove)
+      window.addEventListener('mouseup', handleEnd)
+      window.addEventListener('touchend', handleEnd)
     }
 
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener('mousemove', handleMove)
+      window.removeEventListener('touchmove', handleMove)
+      window.removeEventListener('mouseup', handleEnd)
+      window.removeEventListener('touchend', handleEnd)
     }
   }, [isDragging, isResizing, dragOffset, id, onResize, position, size])
 
@@ -113,7 +123,8 @@ const Window: React.FC<WindowProps> = ({
     >
       <div 
         className="bg-gray-700 px-2 py-1 flex justify-between items-center cursor-move"
-        onMouseDown={handleMouseDown}
+        onMouseDown={handleStart}
+        onTouchStart={handleStart}
       >
         <span className="text-white text-sm">{title}</span>
         <button onClick={onClose} className="text-white focus:outline-none">
@@ -132,8 +143,9 @@ const Window: React.FC<WindowProps> = ({
         )}
       </div>
       <div 
-        className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
-        onMouseDown={handleResizeMouseDown}
+        className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize"
+        onMouseDown={handleResizeStart}
+        onTouchStart={handleResizeStart}
       />
     </div>
   )
